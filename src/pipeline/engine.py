@@ -404,8 +404,8 @@ def generate_eda_plots(df, target_col):
         corr = num_df.corr()
         mask = np.triu(np.ones_like(corr, dtype=bool))
         sns.heatmap(corr, mask=mask, annot=len(corr) <= 12, fmt='.2f', cmap='coolwarm', ax=ax, linewidths=0.5, vmin=-1, vmax=1)
-    ax.set_title('Correlation Matrix', fontsize=12)
-    plots['correlation'] = _fig_to_b64(fig)
+        ax.set_title('Correlation Matrix', fontsize=12)
+        plots['correlation'] = _fig_to_b64(fig)
 
     return plots
 
@@ -542,7 +542,7 @@ def predict_single(session_id, input_dict):
     if meta['problem_type'] != 'regression':
         try:
             proba = pipeline.predict_proba(df)[0]
-            classes = le.classes.tolist() if le else [str(i) for i in range(len(proba))]
+            classes = le.classes_.tolist() if le else [str(i) for i in range(len(proba))]
             result['probabilities'] = {str(c): round(float(p), 4) for c,p in zip(classes,proba)}
         except Exception:
             pass

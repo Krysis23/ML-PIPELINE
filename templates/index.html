@@ -100,6 +100,37 @@
         ⚡ Train Models
       </button>
     </form>
+
+    <!-- Load Previous Session -->
+    <div class="card" style="margin-top:2.5rem;margin-bottom:2rem">
+      <div class="card-header">
+        <div class="card-title">↩ Load a previous session</div>
+      </div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:1rem;line-height:1.6">
+          Already trained a model? Paste its session ID to jump back to results or make predictions.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input
+            type="text"
+            id="session-id-input"
+            class="form-control"
+            placeholder="e.g. 3b04d14c"
+            style="flex:1;min-width:180px;font-family:var(--mono);font-size:13px"
+            maxlength="64"
+          >
+          <button type="button" class="btn btn-outline" id="go-results-btn" style="white-space:nowrap">
+            📊 View Results
+          </button>
+          <button type="button" class="btn btn-primary" id="go-predict-btn" style="white-space:nowrap">
+            → Predict
+          </button>
+        </div>
+        <div id="session-error" style="display:none;margin-top:10px;font-size:12px;color:#f87171;font-weight:500">
+          ⚠ Please enter a session ID first.
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -323,29 +354,33 @@ syncModelsField();
 
 document.getElementById('train-form').addEventListener('submit', function(e) {
   e.preventDefault();
-  
+
   trainBtn.innerHTML = '<div class="spinner"></div> &nbsp;Preparing training...';
   trainBtn.disabled = true;
-  
-  const formData = new FormData(this);
-  const models = formData.get('models');
-  
-  // Create a hidden form and submit it to /train
-  const hiddenForm = document.createElement('form');
-  hiddenForm.method = 'POST';
-  hiddenForm.action = '/train';
-  hiddenForm.enctype = 'multipart/form-data';
-  
-  for (let [key, value] of formData.entries()) {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = key;
-    input.value = value;
-    hiddenForm.appendChild(input);
+
+  // Submit the original form directly so the file input is included
+  this.submit();
+});
+
+// Session loader
+function navigateToSession(path) {
+  const input = document.getElementById('session-id-input');
+  const errEl = document.getElementById('session-error');
+  const sid = input.value.trim();
+  if (!sid) {
+    errEl.style.display = 'block';
+    input.focus();
+    return;
   }
-  
-  document.body.appendChild(hiddenForm);
-  hiddenForm.submit();
+  errEl.style.display = 'none';
+  window.location.href = `/${path}/${sid}`;
+}
+
+document.getElementById('go-results-btn').addEventListener('click', () => navigateToSession('results'));
+document.getElementById('go-predict-btn').addEventListener('click', () => navigateToSession('predict-form'));
+
+document.getElementById('session-id-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') navigateToSession('predict-form');
 });
 </script>
 {% endblock %}

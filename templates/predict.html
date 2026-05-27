@@ -3,8 +3,6 @@
 
 {% block extra_head %}
 <style>
-.predict-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; padding: 2.5rem 0; }
-@media (max-width: 768px) { .predict-layout { grid-template-columns: 1fr; } }
 .section-title { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.25rem; }
 .prediction-box { background: var(--surface2); border: 1px solid var(--accent); border-radius: 8px; padding: 1.5rem; text-align: center; margin-bottom: 1.5rem; }
 .prediction-label { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
@@ -17,9 +15,8 @@
 .prob-bar-wrap { flex: 1; height: 3px; background: var(--border); border-radius: 2px; }
 .prob-bar { height: 3px; border-radius: 2px; background: var(--accent); }
 .prob-val { color: var(--text); min-width: 42px; text-align: right; }
-.batch-results { margin-top: 1.5rem; }
 .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-@media (max-width: 900px) { .fields-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .fields-grid { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 
@@ -37,147 +34,56 @@
     features: <span style="color:var(--text)">{{ meta.feature_cols | length }}</span>
   </div>
 
-  <div class="predict-layout">
-    <!-- Left: single prediction -->
-    <div>
-      <div class="section-title">Single prediction</div>
+  <div style="max-width:700px;margin:0 auto">
+    <div class="section-title">Single prediction</div>
 
-      {% if prediction %}
-      <div class="prediction-box">
-        <div class="prediction-label">Prediction</div>
-        <div class="prediction-value">{{ prediction.prediction }}</div>
-        {% if prediction.probabilities %}
-          {% set conf = prediction.probabilities.values() | list | max %}
-          <div style="font-size:12px;color:var(--muted)">Confidence: <b style="color:var(--green)">{{ (conf * 100) | round(1) }}%</b></div>
-          <div class="confidence-bar-wrap"><div class="confidence-bar" style="width:{{ (conf*100)|round }}%"></div></div>
-          <div class="prob-grid">
-            {% for cls, prob in prediction.probabilities.items() %}
-            <div class="prob-row">
-              <span class="prob-class">{{ cls }}</span>
-              <div class="prob-bar-wrap"><div class="prob-bar" style="width:{{ (prob*100)|round }}%"></div></div>
-              <span class="prob-val">{{ (prob*100)|round(1) }}%</span>
+    {% if prediction %}
+    <div class="prediction-box">
+      <div class="prediction-label">Prediction</div>
+      <div class="prediction-value">{{ prediction.prediction }}</div>
+      {% if prediction.probabilities %}
+        {% set conf = prediction.probabilities.values() | list | max %}
+        <div style="font-size:12px;color:var(--muted)">Confidence: <b style="color:var(--green)">{{ (conf * 100) | round(1) }}%</b></div>
+        <div class="confidence-bar-wrap"><div class="confidence-bar" style="width:{{ (conf*100)|round }}%"></div></div>
+        <div class="prob-grid">
+          {% for cls, prob in prediction.probabilities.items() %}
+          <div class="prob-row">
+            <span class="prob-class">{{ cls }}</span>
+            <div class="prob-bar-wrap"><div class="prob-bar" style="width:{{ (prob*100)|round }}%"></div></div>
+            <span class="prob-val">{{ (prob*100)|round(1) }}%</span>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <form action="/predict-single/{{ session_id }}" method="post">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Enter feature values</div></div>
+        <div class="card-body">
+          <div class="fields-grid">
+            {% for col in meta.feature_cols %}
+            <div class="form-group">
+              <label class="form-label">{{ col }}</label>
+              {% if col in meta.numeric_cols %}
+                <input class="form-control" type="number" step="any" name="{{ col }}"
+                  value="{{ input_data[col] if input_data and input_data[col] is not none else '' }}"
+                  placeholder="numeric">
+              {% else %}
+                <input class="form-control" type="text" name="{{ col }}"
+                  value="{{ input_data[col] if input_data and input_data[col] is not none else '' }}"
+                  placeholder="text">
+              {% endif %}
             </div>
             {% endfor %}
           </div>
-        {% endif %}
-      </div>
-      {% endif %}
-
-      <form action="/predict-single/{{ session_id }}" method="post">
-        <div class="card">
-          <div class="card-header"><div class="card-title">Enter feature values</div></div>
-          <div class="card-body">
-            <div class="fields-grid">
-              {% for col in meta.feature_cols %}
-              <div class="form-group">
-                <label class="form-label">{{ col }}</label>
-                {% if col in meta.numeric_cols %}
-                  <input class="form-control" type="number" step="any" name="{{ col }}"
-                    value="{{ input_data[col] if input_data and input_data[col] is not none else '' }}"
-                    placeholder="numeric">
-                {% else %}
-                  <input class="form-control" type="text" name="{{ col }}"
-                    value="{{ input_data[col] if input_data and input_data[col] is not none else '' }}"
-                    placeholder="text">
-                {% endif %}
-              </div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem;padding:12px">
-          Predict →
-        </button>
-      </form>
-    </div>
-
-    <!-- Right: batch upload -->
-    <div>
-      <div class="section-title">Batch prediction</div>
-
-      <div class="card" style="margin-bottom:1rem">
-        <div class="card-header"><div class="card-title">Upload CSV for batch results</div></div>
-        <div class="card-body">
-          <p style="font-size:12px;color:var(--muted);margin-bottom:1rem;line-height:1.7">
-            CSV must contain these columns:
-            <span style="font-family:var(--mono);color:var(--accent2)">
-              {{ meta.feature_cols | join(', ') }}
-            </span>
-          </p>
-          <form action="/predict-batch/{{ session_id }}" method="post" enctype="multipart/form-data">
-            <div class="upload-zone" id="batch-drop-zone" style="padding:1.5rem">
-              <input type="file" name="file" id="batch-file-input" accept=".csv" required>
-              <div class="upload-icon" style="font-size:1.5rem">📄</div>
-              <div class="upload-label" style="font-size:13px">Drop CSV or click to browse</div>
-            </div>
-            <button type="submit" class="btn btn-outline" style="width:100%;justify-content:center;margin-top:0.75rem">
-              Upload & predict batch
-            </button>
-          </form>
         </div>
       </div>
-
-      {% if batch_predictions %}
-      <div class="card batch-results">
-        <div class="card-header">
-          <div class="card-title">Batch results</div>
-          <div class="badge badge-green" style="margin-left:auto">{{ batch_count }} rows</div>
-        </div>
-        <div style="max-height:400px;overflow-y:auto">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Row</th>
-                <th>Prediction</th>
-                <th>Confidence</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in batch_predictions %}
-              <tr>
-                <td>{{ row.row }}</td>
-                <td><span class="badge badge-purple">{{ row.prediction }}</span></td>
-                <td>
-                  {% if row.confidence is defined %}
-                    <span style="font-family:var(--mono)">{{ (row.confidence * 100) | round(1) }}%</span>
-                  {% else %} — {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- API reference for this session -->
-      <div class="card" style="margin-top:1rem">
-        <div class="card-header"><div class="card-title">JSON API</div></div>
-        <div class="card-body">
-          <div class="code-block">curl -X POST \
-  /api/predict/{{ session_id }} \
-  -H "Content-Type: application/json" \
-  -d '{
-    {% for col in meta.feature_cols[:3] %}"{{ col }}": ""{% if not loop.last %},
-    {% endif %}{% endfor %}
-  }'</div>
-        </div>
-      </div>
-    </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:1rem;padding:12px">
+        Predict →
+      </button>
+    </form>
   </div>
 </div>
-<script>
-const batchDropZone = document.getElementById('batch-drop-zone');
-const batchFileInput = document.getElementById('batch-file-input');
-if (batchDropZone && batchFileInput) {
-  batchDropZone.addEventListener('click', () => batchFileInput.click());
-  batchDropZone.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      batchFileInput.click();
-    }
-  });
-  batchDropZone.tabIndex = 0;
-}
-</script>
 {% endblock %}

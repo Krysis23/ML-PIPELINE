@@ -109,21 +109,48 @@ def get_training_status(session_id):
 def results_page(session_id):
     try:
         _, _, meta = load_session(session_id)
-        result = training_progress.get(session_id, {}).copy()
-        result.pop('progress', None)
-        result.pop('logs', None)
-        
-        # Load full results from session
-        import glob
-        session_dir = os.path.join(os.path.dirname(__file__), '..', 'sessions', session_id)
-        if os.path.exists(session_dir):
-            with open(os.path.join(session_dir, 'results.json'), 'r') as f:
-                result = json.load(f)
-        
+        # Build a minimal result dict from persisted meta so the template renders
+        result = {
+            'session_id': session_id,
+            'problem_type': meta.get('problem_type'),
+            'best_model': meta.get('best_model_name'),
+            'results': meta.get('results', {}),
+            'eda_plots': None,
+            'importance_plot': None,
+            'meta': meta,
+        }
         return render_template('results.html', result=result)
     except Exception as e:
         print(f"Error loading results: {e}")
         return f"<h2>Error loading results: {e}</h2><br><a href='/'>Go back</a>", 500
+
+@app.route('/predict-single/<session_id>', methods=['POST'])
+def predict_single_ui(session_id):
+    try:
+        _, _, meta = load_session(session_id)
+    except Exception as e:
+        flash(f'Session not found: {e}', 'error')
+        return redirect(url_for('index'))
+
+    input_data = {}
+    for col in meta.get('feature_cols', []):
+        val = request.form.get(col, '')
+        if col in meta.get('numeric_cols', []):
+            try:
+                input_data[col] = float(val) if val != '' else None
+            except ValueError:
+                input_data[col] = None
+        else:
+            input_data[col] = val if val != '' else None
+
+    try:
+        prediction = predict_single(session_id, input_data)
+    except Exception as e:
+        flash(f'Prediction failed: {str(e)}', 'error')
+        return render_template('predict.html', meta=meta, session_id=session_id, input_data=input_data)
+
+    return render_template('predict.html', meta=meta, session_id=session_id,
+                           prediction=prediction, input_data=input_data)
 
 @app.route('/predict-form/<session_id>')
 def predict_form(session_id):
@@ -239,7 +266,7 @@ def api_problem_type():
 
 @app.route('/api/predict/<session_id>', methods=['POST'])
 def api_predict(session_id):
-    data = request.get_json
+    data = request.get_json()
     if not data:
         return jsonify({'error': 'JSON body required'}),400
     try:

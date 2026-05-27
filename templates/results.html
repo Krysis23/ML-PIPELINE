@@ -98,7 +98,7 @@
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:0.5rem">
             {% for key, val in model_data.best_params.items() %}
-            <span class="param-chip">{{ key.replace('model__', '') }}={{ val if val is string else val | join(', ') }}</span>
+            <span class="param-chip">{{ key.replace('model__', '') }}={{ val | string }}</span>
             {% endfor %}
           </div>
         </div>
@@ -163,36 +163,6 @@
     <a href="/" class="btn btn-outline">↺ Train another model</a>
   </div>
 
-  <!-- API cheatsheet -->
-  <div class="card">
-    <div class="card-header"><div class="card-title">API — quick reference</div></div>
-    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-      <div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">Single prediction</div>
-        <div class="code-block">POST /api/predict/{{ result.session_id }}
-Content-Type: application/json
-
-{
-{% for col in result.meta.numeric_cols[:3] %}  "{{ col }}": 0,
-{% endfor %}{% for col in result.meta.cat_cols[:2] %}  "{{ col }}": "value"{% if not loop.last %},{% endif %}
-{% endfor %}}
-</div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px">Batch CSV upload</div>
-        <div class="code-block">POST /api/predict/{{ result.session_id }}/batch
-
-# multipart/form-data
-# field: file = your_data.csv
-
-# Returns:
-{
-  "predictions": [...],
-  "count": N
-}</div>
-      </div>
-    </div>
-  </div>
 </div>
 
 <script>
